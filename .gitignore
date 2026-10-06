@@ -11,3 +11,6 @@ esphome/.esphome/
 __pycache__/
 *.log
 .DS_Store
+
+# Personal working notes for Claude Code
+CLAUDE.local.md
