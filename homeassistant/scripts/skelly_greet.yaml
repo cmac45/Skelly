@@ -1,0 +1,36 @@
+# script.skelly_greet -- created in HA through the script config API (it lives
+# in /config/scripts.yaml on the Pi; this is the source copy).
+# Skelly speaks first, so visitors never need a wake word. Each run opens a
+# FRESH conversation, so nothing from the previous visitor carries over.
+# The satellite keeps listening after any reply that ends in a question, which
+# is how the back-and-forth continues hands-free (the prompt's examples all end
+# in a question for that reason).
+alias: Skelly greets a visitor
+description: Skelly opens a new conversation through the yard speaker.
+icon: mdi:skull
+mode: single
+max_exceeded: silent
+sequence:
+  # HA 2026.9 insists on a start_message, so Skelly writes his own opener first
+  # (a throwaway conversation), then the real conversation starts with it.
+  - action: conversation.process
+    data:
+      # Same brain as the satellite's assistant (automation.skelly_unhinged_mode).
+      agent_id: >-
+        {{ 'conversation.skelly_unhinged' if is_state('input_boolean.skelly_unhinged', 'on')
+           else 'conversation.skeleton' }}
+      text: >-
+        (Not a visitor speaking -- stage note: someone has just walked up the
+        driveway toward you. Say your opening line to them: greet them in
+        character in one or two short sentences and end with a question so
+        they answer you. Reply with only the words you say.)
+    response_variable: opener
+  - action: assist_satellite.start_conversation
+    target:
+      entity_id: assist_satellite.skelly_voice_assist_satellite
+    data:
+      preannounce: false
+      start_message: "{{ opener.response.speech.plain.speech }}"
+      extra_system_prompt: >-
+        A visitor has just walked up the driveway and you spoke first. This is
+        a new visitor; you have never met them.

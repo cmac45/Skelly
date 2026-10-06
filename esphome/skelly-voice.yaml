@@ -1,0 +1,139 @@
+# Skelly's ears and voice: reSpeaker XVF3800 4-mic array + XIAO ESP32-S3.
+# Built from formatBCE/Respeaker-XVF3800-ESPHome-integration (config/
+# respeaker-xvf-satellite-example.yaml). The packages bring in the patched
+# i2s_audio component and the XVF3800 firmware, which the respeaker_xvf3800
+# component flashes into the XMOS chip over I2C when its version differs.
+#
+# Build and flash from the Mac (first time over the XIAO's USB-C port):
+#   esphome/.venv/bin/esphome run esphome/skelly-voice.yaml
+# Needs ESPHome >= 2026.9.0 (Python 3.12 venv in esphome/.venv, made with uv;
+# cbor2 is pinned <6 because 6.x has no Intel-Mac wheel and needs Rust).
+
+substitutions:
+  name: skelly-voice
+  friendly_name: Skelly Voice
+  respeaker_ref: main
+  # Raven caw instead of the stock chime when the wake word fires (0.55 s cut
+  # from the library's raven_yellowstone.mp3; listening starts 0.3 s in, so keep it short).
+  wake_word_triggered_sound_file: sounds/chime_raven.flac
+
+packages:
+  respeaker:
+    url: https://github.com/formatBCE/Respeaker-XVF3800-ESPHome-integration
+    ref: ${respeaker_ref}
+    refresh: 1d
+    files:
+      - packages/base.yaml
+      - packages/hardware.yaml
+      - packages/voice-assistant.yaml
+      - packages/leds.yaml
+      - packages/timers-alarm.yaml
+
+# A remote package cannot read secrets, so the credentials live here.
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+api:
+  encryption:
+    key: !secret api_key
+
+ota:
+  - platform: esphome
+    id: ota_esphome
+    password: !secret ota_password
+
+# Skelly's own wake words, both custom microWakeWord models trained in the
+# alfiedennen/microwakeword-trainer Colab (settings in wakeword/*_colab_config.py):
+#   "Hello Skelly" (2026-10-03, synthetic adult voices only)
+#   "Hey Skelly"   (2026-10-04, plus the family's recordings and child-pitched
+#                   copies, because young kids couldn't wake Hello Skelly)
+# Appended to the package's model list (ESPHome merges lists by id). Run both at
+# once with HA's two wake-word slots on the device page.
+micro_wake_word:
+  models:
+    - model: wakeword/hello_skelly.json
+      id: hello_skelly
+    - model: wakeword/hey_skelly.json
+      id: hey_skelly
+
+# Per-model thresholds, adjustable from HA without reflashing (the package's
+# "Wake word sensitivity" select only knows the stock models). Lower = wakes more
+# easily (kids), higher = fewer false wakes. The .json cutoffs are only the
+# defaults until these numbers take over at boot.
+number:
+  - platform: template
+    name: Voice output boost
+    id: voice_output_boost
+    icon: mdi:volume-plus
+    unit_of_measurement: dB
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 6
+    min_value: 0
+    max_value: 9
+    step: 1
+    on_value:
+      - script.execute: apply_voice_boost
+  - platform: template
+    name: Hello Skelly threshold
+    id: hello_skelly_threshold
+    icon: mdi:tune-vertical
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 0.6
+    min_value: 0.3
+    max_value: 0.95
+    step: 0.05
+    on_value:
+      - lambda: id(hello_skelly).set_probability_cutoff((uint8_t) (x * 255.0f));
+  - platform: template
+    name: Hey Skelly threshold
+    id: hey_skelly_threshold
+    icon: mdi:tune-vertical
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 0.7
+    min_value: 0.3
+    max_value: 0.95
+    step: 0.05
+    on_value:
+      - lambda: id(hey_skelly).set_probability_cutoff((uint8_t) (x * 255.0f));
+
+esphome:
+  on_boot:
+    - priority: -100
+      then:
+        - lambda: |-
+            id(hello_skelly).set_probability_cutoff((uint8_t) (id(hello_skelly_threshold).state * 255.0f));
+            id(hey_skelly).set_probability_cutoff((uint8_t) (id(hey_skelly_threshold).state * 255.0f));
+        # The codec's analog output stages come up at +0 dB; re-apply the boost once
+        # the XMOS has finished configuring the codec.
+        - delay: 10s
+        - script.execute: apply_voice_boost
+
+# Skelly's voice was quiet even at 100% volume (DAC digital gain is already 0 dB).
+# The AIC3104's output drivers have their own 0..+9 dB level (bits 7-4 of the
+# output-level registers 51/58/65/72 HP and 86/93 line out); the formatBCE
+# driver never sets them. Read-modify-write so mute/power bits are untouched.
+# Too much boost clips on loud peaks -- back it off if the voice crackles.
+script:
+  - id: apply_voice_boost
+    then:
+      - lambda: |-
+          auto *dac = id(aic3104_dac);
+          const uint8_t lvl = (uint8_t) id(voice_output_boost).state;
+          dac->write_byte(0x00, 0x00);  // page 0
+          for (uint8_t reg : {51, 58, 65, 72, 86, 93}) {
+            uint8_t v;
+            if (!dac->read_byte(reg, &v)) {
+              ESP_LOGW("voice_boost", "reg %u read failed", reg);
+              continue;
+            }
+            const uint8_t nv = (v & 0x0F) | (lvl << 4);
+            dac->write_byte(reg, nv);
+            ESP_LOGI("voice_boost", "reg %u: 0x%02X -> 0x%02X", reg, v, nv);
+          }

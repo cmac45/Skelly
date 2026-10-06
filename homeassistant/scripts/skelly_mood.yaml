@@ -1,0 +1,140 @@
+# script.skelly_mood -- created in HA through the script config API (it lives in
+# /config/scripts.yaml on the Pi; this is the source copy). Called by Skelly's
+# set_yard_mood tool in custom_components/skelly_tools.
+#
+# Flashing never exceeds 2 flashes a second: the photosensitive-epilepsy risk
+# band starts around 3 Hz, and small children walk past this yard.
+alias: Skelly mood
+description: >-
+  Sets the yard lights (roofline, curtains, skeleton spotlights) to a mood for
+  about a minute, then returns them to the Halloween look.
+icon: mdi:skull
+mode: restart
+fields:
+  mood:
+    name: Mood
+    required: true
+    selector:
+      select:
+        options: [angry, happy, spooky, scared, sleepy, party, normal]
+sequence:
+  - variables:
+      # The roofline is local and fast, so it carries the colors and flashing.
+      # The curtains play an animated Govee scene for the mood (cloud, starts in
+      # ~2-3 s); set 2 follows the lead set over the Govee link. The spotlights
+      # (power-only locally) get their color through Govee's cloud.
+      yard: [light.h705f]
+      curtain_scenes:
+        angry:  [Demon, Lava, Fire Dragon, Burning]
+        happy:  [Dancing Pumpkin, Skeleton Juggler, Pumpkin]
+        spooky: [Graveyard, Witch, Bat, Spider, Halloween, Skeleton]
+        scared: [Spider, Bat]
+        sleepy: [Starry Night, Moon Boat, Campfire]
+        party:  [Skeleton Juggler, Dancing Pumpkin, Rainbow Cloud]
+      moods:
+        angry:  {rgb: [255, 0, 0],    bri: 100, spot: 16711680, set2: 16711680}
+        happy:  {rgb: [255, 150, 20], bri: 100, spot: 16747520, set2: 16762880}
+        spooky: {rgb: [128, 0, 255],  bri: 70,  spot: 8388863,  set2: 2686760}
+        scared: {rgb: [40, 70, 255],  bri: 30,  spot: 255,      set2: 2639615}
+        sleepy: {rgb: [25, 25, 112],  bri: 15,  spot: 1644912,  set2: 1644912}
+        party:  {rgb: [255, 90, 0],   bri: 100, spot: 16733440, set2: 16733440}
+      m: "{{ moods.get(mood, {}) }}"
+  # A plain boolean: "x and m" would return the dict m, which HA reads as false.
+  - if: "{{ mood != 'normal' and mood in moods }}"
+    then:
+      - action: light.turn_on
+        target:
+          entity_id: light.h8066
+      - parallel:
+          - action: select.select_option
+            continue_on_error: true
+            target:
+              entity_id: select.govee_curtain_main_scene
+            data:
+              option: "{{ curtain_scenes[mood] | random }}"
+          - action: rest_command.govee_control
+            continue_on_error: true
+            data:
+              sku: H8066
+              device: "GOVEE_SPOTLIGHT_DEVICE_ID"
+              type: color_setting
+              instance: colorRgb
+              value: "{{ m.spot }}"
+      - choose:
+          - conditions: "{{ mood == 'angry' }}"
+            sequence:
+              - action: light.turn_on
+                target:
+                  entity_id: "{{ yard }}"
+                data:
+                  rgb_color: "{{ m.rgb }}"
+                  brightness_pct: 100
+              - repeat:          # 1 pulse a second for 8 seconds
+                  count: 8
+                  sequence:
+                    - delay: {milliseconds: 500}
+                    - action: light.turn_on
+                      target:
+                        entity_id: "{{ yard }}"
+                      data:
+                        brightness_pct: 20
+                    - delay: {milliseconds: 500}
+                    - action: light.turn_on
+                      target:
+                        entity_id: "{{ yard }}"
+                      data:
+                        brightness_pct: 100
+          - conditions: "{{ mood == 'scared' }}"
+            sequence:
+              - repeat:          # 2 flickers a second for 2 seconds
+                  count: 4
+                  sequence:
+                    - action: light.turn_on
+                      target:
+                        entity_id: "{{ yard }}"
+                      data:
+                        rgb_color: [255, 255, 255]
+                        brightness_pct: 100
+                    - delay: {milliseconds: 250}
+                    - action: light.turn_on
+                      target:
+                        entity_id: "{{ yard }}"
+                      data:
+                        brightness_pct: 5
+                    - delay: {milliseconds: 250}
+              - action: light.turn_on
+                target:
+                  entity_id: "{{ yard }}"
+                data:
+                  rgb_color: "{{ m.rgb }}"
+                  brightness_pct: "{{ m.bri }}"
+          - conditions: "{{ mood == 'party' }}"
+            sequence:
+              - action: light.turn_on
+                target:
+                  entity_id: "{{ yard }}"
+                data:
+                  effect: energetic
+        default:
+          - action: light.turn_on
+            target:
+              entity_id: "{{ yard }}"
+            data:
+              rgb_color: "{{ m.rgb }}"
+              brightness_pct: "{{ m.bri }}"
+      - delay: 60
+  # Back to the usual look. Outside Halloween mode the mood simply stays.
+  - if:
+      - condition: state
+        entity_id: input_boolean.halloween_mode
+        state: "on"
+    then:
+      - action: light.turn_on
+        target:
+          entity_id: light.h70b3
+        data:
+          rgb_color: [255, 90, 0]
+          brightness_pct: 70
+      - action: automation.trigger
+        target:
+          entity_id: automation.halloween_apply_the_look

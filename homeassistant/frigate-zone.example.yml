@@ -1,0 +1,13 @@
+# Frigate: the zone that wakes Skelly. Add under cameras.<your_camera>.zones.
+# Draw it on the detect frame (Frigate UI > Settings > Masks / Zones) where
+# people walk up toward the skeleton. Zone membership is judged by the
+# bottom-centre of a person's box (their feet). If a motion mask covers the
+# area, cut a window in the mask too, or nobody is ever detected there.
+#
+# The Frigate integration then creates
+# binary_sensor.skelly_approach_person_occupancy, which triggers
+# homeassistant/automations/skelly_greet_visitor.yaml.
+skelly_approach:
+  coordinates: 0.504,0.131,0.721,0.131,0.721,0.297,0.504,0.297
+  objects:
+    - person

@@ -1,0 +1,13 @@
+# Never committed: people's voices, songs, logs, personal details, secrets
+private/
+homeassistant/personal.yaml
+esphome/secrets.yaml
+build/
+
+# Tooling
+esphome/.venv/
+esphome/.uvtool/
+esphome/.esphome/
+__pycache__/
+*.log
+.DS_Store

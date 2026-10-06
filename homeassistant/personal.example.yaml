@@ -1,0 +1,9 @@
+# Copy to personal.yaml (git-ignored) and fill in your own details.
+# tools/skelly.py applies every replacement (exact text, left -> right) to the
+# prompts, scripts and automations before deploying them to Home Assistant, so
+# the public files stay generic and your Skelly still gets the real thing.
+replacements:
+  # Personalize the gravestones Skelly guards (see homeassistant/prompts/).
+  '"Rest in Peace, Veggies Nobody Ate"': '"Rest in Peace, Grandpa''s Zucchini"'
+  # Your Govee spotlight's device ID (Govee Platform API "device" field).
+  GOVEE_SPOTLIGHT_DEVICE_ID: "AA:BB:CC:DD:EE:FF:00:11"

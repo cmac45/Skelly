@@ -1,0 +1,32 @@
+# automation.skelly_greet_visitor -- created in HA through the automation config
+# API (lives in /config/automations.yaml on the Pi; this is the source copy).
+# The front-yard camera replaces the wake word: a person entering the Frigate
+# `skelly_approach` zone (street + sidewalks at the driveway mouth, drawn by the
+# user 2026-10-04) starts a conversation, so Skelly greets people as they walk up.
+# Passers-by in front of the driveway count too -- on purpose.
+alias: "Skelly: greet driveway visitors"
+description: >-
+  Starts a Skelly conversation when a person walks up to the driveway mouth, from 4 PM
+  until the outdoor lights go off, while "Skelly talks to visitors" is on.
+mode: single
+max_exceeded: silent
+triggers:
+  - trigger: state
+    entity_id: binary_sensor.skelly_approach_person_occupancy
+    to: "on"
+conditions:
+  - condition: state
+    entity_id: input_boolean.skelly_auto_talk
+    state: "on"
+  - condition: time
+    after: "16:00:00"
+    before: input_datetime.outdoor_lights_off_time
+  # Never talk over a conversation already in progress.
+  - condition: state
+    entity_id: assist_satellite.skelly_voice_assist_satellite
+    state: idle
+actions:
+  - action: script.skelly_greet
+  # Cooldown: a group lingering on the driveway gets one greeting, not one per
+  # person or per Frigate flicker. (mode: single drops triggers meanwhile.)
+  - delay: "00:01:30"

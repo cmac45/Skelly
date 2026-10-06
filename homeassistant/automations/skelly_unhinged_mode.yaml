@@ -1,0 +1,43 @@
+# automation.skelly_unhinged_mode -- created in HA through the automation config
+# API (lives in /config/automations.yaml on the Pi; this is the source copy).
+# The "Skelly unhinged mode" switch picks Skelly's brain: Skeleton (Claude, the
+# normal haunted-house Skelly) or Skeleton (Unhinged) (Grok via OpenRouter, the
+# roast comic). Both wake-word slots follow it; script.skelly_greet reads the
+# switch itself. Unhinged never carries over to the next day: it switches off at
+# the outdoor lights-off time.
+alias: "Skelly: unhinged mode"
+description: >-
+  Switches the Skelly Voice assistants between the normal and unhinged
+  pipelines when the switch changes, and turns unhinged mode off at lights-off.
+mode: queued
+triggers:
+  - trigger: state
+    entity_id: input_boolean.skelly_unhinged
+    to: ["on", "off"]
+    id: switched
+  - trigger: time
+    at: input_datetime.outdoor_lights_off_time
+    id: lights_off
+  # Re-assert after a Skelly Voice reboot or reconnect.
+  - trigger: state
+    entity_id: select.skelly_voice_assistant
+    from: unavailable
+    id: switched
+actions:
+  - if:
+      - condition: trigger
+        id: lights_off
+    then:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.skelly_unhinged
+    else:
+      - action: select.select_option
+        target:
+          entity_id:
+            - select.skelly_voice_assistant
+            - select.skelly_voice_assistant_2
+        data:
+          option: >-
+            {{ 'Skeleton (Unhinged)' if is_state('input_boolean.skelly_unhinged', 'on')
+               else 'Skeleton' }}

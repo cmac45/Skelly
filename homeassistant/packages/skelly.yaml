@@ -1,0 +1,29 @@
+# Home Assistant package for Skelly. Enable packages in configuration.yaml:
+#
+#   homeassistant:
+#     packages: !include_dir_named packages
+#
+# then copy this file to /config/packages/skelly.yaml.
+
+# Loads custom_components/skelly_tools: registers the "skelly_tools" LLM API
+# (yard moods, curtain scenes, sound effects, songs) that Skelly's agents get
+# INSTEAD of the Assist API, so a stranger on the driveway can't reach the house.
+skelly_tools:
+
+input_boolean:
+  skelly_auto_talk:
+    name: Skelly talks to visitors
+    icon: mdi:skull-outline
+  # Unhinged mode: Skelly runs on Grok (OpenRouter) with the roast-comic prompt.
+  # automation skelly_unhinged_mode swaps the satellite's assistants and turns it
+  # back off at the outdoor lights-off time.
+  skelly_unhinged:
+    name: Skelly unhinged mode
+    icon: mdi:skull-crossbones
+
+# The automations use this as the end of Skelly's evening.
+input_datetime:
+  outdoor_lights_off_time:
+    name: Outdoor lights off at
+    has_date: false
+    has_time: true

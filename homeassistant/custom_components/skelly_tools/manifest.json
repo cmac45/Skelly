@@ -1,0 +1,10 @@
+{
+  "domain": "skelly_tools",
+  "name": "Skelly tools",
+  "codeowners": [],
+  "dependencies": ["script"],
+  "documentation": "https://github.com/home-assistant/core",
+  "iot_class": "local_push",
+  "requirements": [],
+  "version": "1.0.0"
+}

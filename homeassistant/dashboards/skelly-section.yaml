@@ -1,0 +1,131 @@
+# The "Skelly" section of a sections-view dashboard: unhinged switch, camera
+# greeting switch, Greet now, status, volume, and songs (tap = 1 min jingle,
+# hold = full song). Paste into a dashboard's raw configuration editor, under
+# views[].sections.
+type: grid
+cards:
+- type: heading
+  heading: Skelly
+  icon: mdi:skull
+- type: tile
+  entity: input_boolean.skelly_unhinged
+  name: Unhinged mode (Grok)
+  icon: mdi:skull-crossbones
+  grid_options:
+    columns: 6
+- type: tile
+  entity: input_boolean.skelly_auto_talk
+  name: Greets visitors
+  icon: mdi:skull-outline
+  grid_options:
+    columns: 6
+- type: button
+  name: Greet now
+  icon: mdi:account-voice
+  show_state: false
+  tap_action:
+    action: perform-action
+    perform_action: script.skelly_greet
+  grid_options:
+    columns: 6
+    rows: 2
+- type: tile
+  entity: assist_satellite.skelly_voice_assist_satellite
+  name: Skelly is
+  icon: mdi:skull
+  grid_options:
+    columns: 6
+    rows: 2
+  vertical: true
+- type: tile
+  entity: media_player.skelly_voice_media_player
+  name: Skelly volume
+  features:
+  - type: media-player-volume-slider
+  grid_options:
+    columns: 12
+- type: heading
+  heading: 'Skelly songs (tap: 1 min · hold: full song)'
+  heading_style: subtitle
+  icon: mdi:music
+- type: button
+  name: On the Mic
+  icon: mdi:microphone-variant
+  show_state: false
+  tap_action:
+    action: perform-action
+    perform_action: media_player.play_media
+    target:
+      entity_id: media_player.skelly_music
+    data:
+      media_content_id: media-source://media_source/local/skelly/songs/skelly_on_the_mic_short.mp3
+      media_content_type: music
+  grid_options:
+    columns: 4
+    rows: 2
+  hold_action:
+    action: perform-action
+    perform_action: media_player.play_media
+    target:
+      entity_id: media_player.skelly_music
+    data:
+      media_content_id: media-source://media_source/local/skelly/songs/skelly_on_the_mic.mp3
+      media_content_type: music
+- type: button
+  name: Shake Your Bones
+  icon: mdi:baby-face-outline
+  show_state: false
+  tap_action:
+    action: perform-action
+    perform_action: media_player.play_media
+    target:
+      entity_id: media_player.skelly_music
+    data:
+      media_content_id: media-source://media_source/local/skelly/songs/shake_your_bones_short.mp3
+      media_content_type: music
+  grid_options:
+    columns: 4
+    rows: 2
+  hold_action:
+    action: perform-action
+    perform_action: media_player.play_media
+    target:
+      entity_id: media_player.skelly_music
+    data:
+      media_content_id: media-source://media_source/local/skelly/songs/shake_your_bones.mp3
+      media_content_type: music
+- type: button
+  name: Rest in Puck
+  icon: mdi:hockey-puck
+  show_state: false
+  tap_action:
+    action: perform-action
+    perform_action: media_player.play_media
+    target:
+      entity_id: media_player.skelly_music
+    data:
+      media_content_id: media-source://media_source/local/skelly/songs/rest_in_puck_short.mp3
+      media_content_type: music
+  grid_options:
+    columns: 4
+    rows: 2
+  hold_action:
+    action: perform-action
+    perform_action: media_player.play_media
+    target:
+      entity_id: media_player.skelly_music
+    data:
+      media_content_id: media-source://media_source/local/skelly/songs/rest_in_puck.mp3
+      media_content_type: music
+- type: button
+  name: Stop music
+  icon: mdi:stop
+  show_state: false
+  tap_action:
+    action: perform-action
+    perform_action: media_player.media_stop
+    target:
+      entity_id: media_player.skelly_music
+  grid_options:
+    columns: 12
+    rows: 1

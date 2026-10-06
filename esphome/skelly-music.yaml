@@ -1,0 +1,124 @@
+# Skelly's music player: ESP32-S3 DevKitC-1 (N16R8) + PCM5102A I2S DAC.
+# Spooky sounds and ambient loops for the ground speaker (amp RIGHT channel);
+# Skelly's voice stays on the reSpeaker (amp LEFT). Wiring guide:
+# https://claude.ai/artifact/ChJSCfTjVkKsDf7rWqqQVD
+#   DAC BCK <- GPIO5, LCK <- GPIO6, DIN <- GPIO7, VIN <- 5V, SCK -> DAC GND,
+#   DAC jumpers H1L/H2L/H4L = L, H3L (XSMT) = H.
+# Output is MONO on both DAC channels, so whichever RCA plug feeds the amp gets
+# the whole mix. Media = loops/music; announcements = one-shot effects that duck
+# the media and play over it.
+#
+# Build and flash (first time over the board's COM/UART USB-C port):
+#   esphome/.venv/bin/esphome run esphome/skelly-music.yaml
+
+esphome:
+  name: skelly-music
+  friendly_name: Skelly Music
+
+esp32:
+  board: esp32-s3-devkitc-1
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal   # N16R8 = 8 MB octal PSRAM (GPIO35-37 are taken by it)
+  speed: 80MHz
+
+logger:
+
+api:
+  encryption:
+    key: !secret music_api_key
+
+ota:
+  - platform: esphome
+    password: !secret music_ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+i2s_audio:
+  - id: i2s_output
+    i2s_bclk_pin: GPIO5
+    i2s_lrclk_pin: GPIO6
+
+speaker:
+  - platform: i2s_audio
+    id: dac_speaker
+    i2s_audio_id: i2s_output
+    i2s_dout_pin: GPIO7
+    dac_type: external
+    channel: mono          # same signal on L and R
+    sample_rate: 48000
+    bits_per_sample: 16bit
+    timeout: never
+    buffer_duration: 100ms
+
+  # Announcement (effects) and media (loops) streams mixed into the one DAC.
+  - platform: mixer
+    id: mixing_speaker
+    output_speaker: dac_speaker
+    num_channels: 1
+    task_stack_in_psram: true
+    source_speakers:
+      - id: announcement_mixing_input
+        timeout: never
+      - id: media_mixing_input
+        timeout: never
+  - platform: resampler
+    id: announcement_resampling_speaker
+    output_speaker: announcement_mixing_input
+    sample_rate: 48000
+    bits_per_sample: 16
+  - platform: resampler
+    id: media_resampling_speaker
+    output_speaker: media_mixing_input
+    sample_rate: 48000
+    bits_per_sample: 16
+
+media_source:
+  - platform: audio_http
+    id: http_announcement_source
+  - platform: audio_http
+    id: http_media_source
+    buffer_size: 500000
+
+media_player:
+  - platform: speaker_source
+    id: skelly_music_player
+    name: None
+    announcement_pipeline:
+      format: FLAC
+      num_channels: 1
+      sample_rate: 48000
+      speaker: announcement_resampling_speaker
+      sources:
+        - http_announcement_source
+    media_pipeline:
+      format: FLAC
+      num_channels: 1
+      sample_rate: 48000
+      speaker: media_resampling_speaker
+      sources:
+        - http_media_source
+    volume_increment: 0.05
+    volume_min: 0.0
+    volume_max: 1.0
+    # A sound effect ducks the ambient loop instead of fighting it.
+    on_announcement:
+      - mixer_speaker.apply_ducking:
+          id: media_mixing_input
+          decibel_reduction: 15
+          duration: 0.5s
+    on_state:
+      - if:
+          condition:
+            not:
+              media_player.is_announcing: skelly_music_player
+          then:
+            - mixer_speaker.apply_ducking:
+                id: media_mixing_input
+                decibel_reduction: 0
+                duration: 1.0s
