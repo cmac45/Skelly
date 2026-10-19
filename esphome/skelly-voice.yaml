@@ -137,3 +137,76 @@ script:
             dac->write_byte(reg, nv);
             ESP_LOGI("voice_boost", "reg %u: 0x%02X -> 0x%02X", reg, v, nv);
           }
+
+# Thinking sounds: the reSpeaker's LEDs are hidden inside Skelly, so visitors
+# can't see that he is working on an answer. As soon as HA has their words, the
+# device plays a short filler in Skelly's voice from flash ("Hmmmm...", "Let me
+# think..."), picked at random, to cover the ~2 s until the answer starts. The
+# answer replaces a filler that is still playing, so keep clips under ~1.3 s.
+# Made with the Halloween voice (ElevenLabs "Callum"); a personality with another
+# voice needs its own set. on_intent_start is unused by the formatBCE package, so
+# this adds to its voice_assistant triggers rather than replacing any.
+audio_file:
+  - id: thinking_hmm
+    file: sounds/thinking_hmm.flac
+  - id: thinking_let_me_think
+    file: sounds/thinking_let_me_think.flac
+  - id: thinking_heh_hmm
+    file: sounds/thinking_heh_hmm.flac
+  - id: thinking_well_now
+    file: sounds/thinking_well_now.flac
+  - id: thinking_ooh
+    file: sounds/thinking_ooh.flac
+  - id: thinking_lets_see
+    file: sounds/thinking_lets_see.flac
+  - id: listening_cue_sound
+    file: sounds/chime_knock.flac
+
+switch:
+  - platform: template
+    name: Thinking sounds
+    id: thinking_sounds
+    icon: mdi:thought-bubble-outline
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+  - platform: template
+    name: Listening cue
+    id: listening_cue
+    icon: mdi:ear-hearing
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+
+voice_assistant:
+  on_intent_start:
+    - if:
+        condition:
+          switch.is_on: thinking_sounds
+        then:
+          - script.execute:
+              id: play_sound
+              priority: false
+              sound_file: !lambda |-
+                static const char *const clips[] = {
+                  "thinking_hmm", "thinking_let_me_think", "thinking_heh_hmm",
+                  "thinking_well_now", "thinking_ooh", "thinking_lets_see",
+                };
+                return std::string(clips[random_uint32() % 6]);
+  # "Your turn": a short knock whenever Skelly starts listening without the
+  # raven caw, i.e. after a reply that ends in a question and after a greeting's
+  # opening line. No knock means the conversation is over. After a wake word the
+  # caw is still playing at this point, so the knock is skipped. ESPHome appends
+  # this to the package's own on_listening actions (LED phase), which run first.
+  on_listening:
+    - if:
+        condition:
+          and:
+            - switch.is_on: listening_cue
+            - not:
+                media_player.is_announcing: external_media_player
+        then:
+          - script.execute:
+              id: play_sound
+              priority: false
+              sound_file: "listening_cue_sound"

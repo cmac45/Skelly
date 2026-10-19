@@ -16,7 +16,7 @@ fields:
     required: true
     selector:
       select:
-        options: [angry, happy, spooky, scared, sleepy, party, normal]
+        options: [angry, happy, spooky, scared, sleepy, party, workato, normal]
 sequence:
   - variables:
       # The roofline is local and fast, so it carries the colors and flashing.
@@ -38,6 +38,10 @@ sequence:
         scared: {rgb: [40, 70, 255],  bri: 30,  spot: 255,      set2: 2639615}
         sleepy: {rgb: [25, 25, 112],  bri: 15,  spot: 1644912,  set2: 1644912}
         party:  {rgb: [255, 90, 0],   bri: 100, spot: 16733440, set2: 16733440}
+        # Workato demo: teal #27989F (workato.com's theme color) on the roofline,
+        # azure #3853B6 on the spotlights, and the curtains show the "Workato logo"
+        # DIY scene drawn in the Govee app. Held for two minutes.
+        workato: {rgb: [39, 152, 159], bri: 80, spot: 3691446, set2: 2594975, hold: 120}
       m: "{{ moods.get(mood, {}) }}"
   # A plain boolean: "x and m" would return the dict m, which HA reads as false.
   - if: "{{ mood != 'normal' and mood in moods }}"
@@ -46,12 +50,24 @@ sequence:
         target:
           entity_id: light.h8066
       - parallel:
-          - action: select.select_option
-            continue_on_error: true
-            target:
-              entity_id: select.govee_curtain_main_scene
-            data:
-              option: "{{ curtain_scenes[mood] | random }}"
+          - if: "{{ mood in curtain_scenes }}"
+            then:
+              - action: select.select_option
+                continue_on_error: true
+                target:
+                  entity_id: select.govee_curtain_main_scene
+                data:
+                  option: "{{ curtain_scenes[mood] | random }}"
+            else:
+              # A DIY scene isn't in the scene dropdown, so play it by id.
+              - action: rest_command.govee_control
+                continue_on_error: true
+                data:
+                  sku: H70B3
+                  device: "GOVEE_CURTAIN_DEVICE_ID"
+                  type: dynamic_scene
+                  instance: diyScene
+                  value: WORKATO_LOGO_DIY_ID
           - action: rest_command.govee_control
             continue_on_error: true
             data:
@@ -122,7 +138,7 @@ sequence:
             data:
               rgb_color: "{{ m.rgb }}"
               brightness_pct: "{{ m.bri }}"
-      - delay: 60
+      - delay: "{{ m.get('hold', 60) }}"
   # Back to the usual look. Outside Halloween mode the mood simply stays.
   - if:
       - condition: state

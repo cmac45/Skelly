@@ -1,0 +1,14 @@
+# Skelly's model routes: which model answers him, and through which provider.
+# Each is a conversation agent in HA (title = its name there, as tools/skelly.py
+# set-prompt uses it). Every route gets the same prompt, so the route never
+# changes what Skelly says, only who generates it. The "Skelly model route"
+# dropdown lists the default personality's routes.
+Claude:
+  agent: conversation.skeleton
+  title: Skeleton
+Workato:
+  agent: conversation.skelly_workato
+  title: Skelly (Workato)
+Grok:
+  agent: conversation.skelly_unhinged
+  title: "SpaceXAI: Grok 4.3"

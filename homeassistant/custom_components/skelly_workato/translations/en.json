@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "A Workato AI Gateway key (wkt_aigw_...).",
+        "data": { "api_key": "API key" }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach the Workato AI Gateway.",
+      "invalid_auth": "Workato rejected the API key."
+    },
+    "abort": { "already_configured": "This key is already set up." }
+  },
+  "config_subentries": {
+    "conversation": {
+      "initiate_flow": { "user": "Add conversation agent", "reconfigure": "Reconfigure conversation agent" },
+      "entry_type": "Conversation agent",
+      "step": {
+        "init": {
+          "data": {
+            "model": "Workato model name",
+            "prompt": "Instructions",
+            "max_tokens": "Maximum tokens per reply"
+          }
+        }
+      },
+      "abort": {
+        "entry_not_loaded": "Set up the Workato key first.",
+        "reconfigure_successful": "Saved."
+      }
+    }
+  }
+}
