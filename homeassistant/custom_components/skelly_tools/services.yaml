@@ -1,0 +1,3 @@
+reload_personas:
+  name: Reload personalities
+  description: Re-read personas.json (written by tools/skelly.py deploy-personas).

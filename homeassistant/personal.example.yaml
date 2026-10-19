@@ -7,3 +7,7 @@ replacements:
   '"Rest in Peace, Veggies Nobody Ate"': '"Rest in Peace, Grandpa''s Zucchini"'
   # Your Govee spotlight's device ID (Govee Platform API "device" field).
   GOVEE_SPOTLIGHT_DEVICE_ID: "AA:BB:CC:DD:EE:FF:00:11"
+  # Your lead Govee curtain's device ID, and the id of the "Workato logo" DIY
+  # scene saved on it (Govee Platform API /device/diy-scenes).
+  GOVEE_CURTAIN_DEVICE_ID: "AA:BB:CC:DD:EE:FF:00:22"
+  WORKATO_LOGO_DIY_ID: "12345678"

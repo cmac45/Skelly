@@ -1,0 +1,58 @@
+# automation.skelly_personality -- created in HA through the automation config
+# API (lives in /config/automations.yaml on the Pi; this is the source copy).
+# The "Skelly personality" and "Skelly model route" dropdowns pick Skelly's
+# assistant pipeline, "Skelly <personality> (<route>)": the pipeline carries his
+# voice and the route's agent, and the prompt on every route switches on the
+# personality itself. A personality that only uses certain routes (Unhinged:
+# Grok) uses its first one whatever the route dropdown says. Personalities marked reset_at_lights_off
+# (Unhinged) never carry over to the next day. SKELLY_PERSONAS and
+# SKELLY_DEFAULT_PERSONA are filled in from homeassistant/personas/ at deploy.
+alias: "Skelly: personality and model route"
+description: >-
+  Points both Skelly Voice assistant slots at the pipeline for the chosen
+  personality and model route, and resets some personalities at lights-off.
+mode: queued
+triggers:
+  - trigger: state
+    entity_id:
+      - input_select.skelly_personality
+      - input_select.skelly_brain
+    id: switched
+  - trigger: time
+    at: input_datetime.outdoor_lights_off_time
+    id: lights_off
+  # Re-assert after a Skelly Voice reboot or reconnect.
+  - trigger: state
+    entity_id: select.skelly_voice_assistant
+    from: unavailable
+    id: switched
+variables:
+  personas: SKELLY_PERSONAS
+  default_persona: SKELLY_DEFAULT_PERSONA
+  personality: >-
+    {% set p = states('input_select.skelly_personality') %}
+    {{ p if p in personas else default_persona }}
+actions:
+  - if:
+      - condition: trigger
+        id: lights_off
+    then:
+      # Selecting the default fires this automation again (as "switched").
+      - if: "{{ personas[personality].reset }}"
+        then:
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.skelly_personality
+            data:
+              option: "{{ default_persona }}"
+    else:
+      - action: select.select_option
+        target:
+          entity_id:
+            - select.skelly_voice_assistant
+            - select.skelly_voice_assistant_2
+        data:
+          option: >-
+            {% set allowed = personas[personality].routes %}
+            {% set b = states('input_select.skelly_brain') %}
+            Skelly {{ personality }} ({{ b if b in allowed else allowed[0] }})

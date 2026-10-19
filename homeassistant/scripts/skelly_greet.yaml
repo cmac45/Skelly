@@ -15,10 +15,15 @@ sequence:
   # (a throwaway conversation), then the real conversation starts with it.
   - action: conversation.process
     data:
-      # Same brain as the satellite's assistant (automation.skelly_unhinged_mode).
+      # Same model route as the satellite's assistant (automation.skelly_personality);
+      # the tables come from homeassistant/personas/ at deploy.
       agent_id: >-
-        {{ 'conversation.skelly_unhinged' if is_state('input_boolean.skelly_unhinged', 'on')
-           else 'conversation.skeleton' }}
+        {% set personas = SKELLY_PERSONAS %}
+        {% set agents = SKELLY_AGENTS %}
+        {% set p = states('input_select.skelly_personality') %}
+        {% set allowed = personas[p].routes if p in personas else personas[SKELLY_DEFAULT_PERSONA].routes %}
+        {% set b = states('input_select.skelly_brain') %}
+        {{ agents[b if b in allowed else allowed[0]] }}
       text: >-
         (Not a visitor speaking -- stage note: someone has just walked up the
         driveway toward you. Say your opening line to them: greet them in

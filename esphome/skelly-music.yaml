@@ -38,6 +38,16 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  # Streaming audio skipped with ESPHome's default (light) power saving, which
+  # lets the radio doze between packets; Skelly Voice runs with it off too.
+  power_save_mode: none
+
+# Signal strength in HA, to tell weak Wi-Fi in the yard from other causes of
+# skips (-67 dBm out there vs -53 dBm on the bench).
+sensor:
+  - platform: wifi_signal
+    name: Wi-Fi signal
+    update_interval: 30s
 
 i2s_audio:
   - id: i2s_output
